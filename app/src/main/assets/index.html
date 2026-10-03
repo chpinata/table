@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Акт работ</title>
+<style>
+:root{
+  --bg:#EEF1F4; --paper:#FFFFFF; --ink:#18233A; --muted:#5E6A7D; --line:#D3D9E1;
+  --accent:#145C63; --accent-ink:#FFFFFF; --danger:#A42A22; --field:#F6F8FA;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#11161E; --paper:#1A212C; --ink:#E6EBF2; --muted:#98A3B4; --line:#2C3644;
+    --accent:#5DB5BB; --accent-ink:#0C1A1C; --danger:#F08A80; --field:#141A23; }
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{
+  background:var(--bg); color:var(--ink);
+  font-family: Roboto, "Segoe UI", system-ui, sans-serif; font-size:16px; line-height:1.4;
+  padding-top:env(safe-area-inset-top,0px);
+  -webkit-tap-highlight-color:transparent;
+}
+main{max-width:720px;margin:0 auto;padding:16px 14px 120px}
+
+/* Период — главный элемент экрана: так же он станет заголовком акта */
+.period{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin:6px 2px 18px}
+.period select{
+  appearance:none;-webkit-appearance:none;border:none;background:none;color:var(--ink);
+  font:inherit;font-size:34px;font-weight:700;letter-spacing:-.01em;padding:0 2px;
+  border-bottom:2px dashed var(--line);border-radius:0;
+}
+.period select:focus{outline:none;border-bottom-color:var(--accent)}
+.period .hint{flex-basis:100%;color:var(--muted);font-size:14px;margin-top:2px}
+
+.form{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:14px;display:grid;gap:10px;grid-template-columns:1fr 1fr}
+.form label{display:grid;gap:4px;font-size:13px;color:var(--muted)}
+.form .wide{grid-column:1/-1}
+.form input{
+  font:inherit;font-size:17px;color:var(--ink);background:var(--field);
+  border:1px solid var(--line);border-radius:10px;padding:11px 12px;width:100%;min-width:0;
+}
+.form input:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:transparent}
+.form input.bad{border-color:var(--danger)}
+.err{grid-column:1/-1;color:var(--danger);font-size:14px;min-height:0;margin:0}
+.err:empty{display:none}
+
+button{font:inherit;cursor:pointer}
+.primary{background:var(--accent);color:var(--accent-ink);border:none;border-radius:10px;padding:13px 16px;font-weight:600;font-size:16px}
+.primary:active{filter:brightness(.92)}
+.primary:focus-visible,.ghost:focus-visible,.x:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.form .primary{grid-column:1/-1}
+
+h2{font-size:15px;font-weight:600;color:var(--muted);margin:24px 2px 8px;display:flex;justify-content:space-between;align-items:center}
+.ghost{background:none;border:none;color:var(--danger);font-size:14px;padding:6px 4px}
+
+.tablewrap{background:var(--paper);border:1px solid var(--line);border-radius:14px;overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:15px}
+th{font-size:12px;font-weight:600;color:var(--muted);text-align:left;padding:10px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:10px 8px;border-bottom:1px solid var(--line);vertical-align:top;overflow-wrap:anywhere}
+td .prod{font-weight:600}
+td .work{margin-top:2px}
+td .sku{color:var(--muted);font-size:13px;margin-top:2px}
+tr:last-child td{border-bottom:none}
+td.n,th.n{width:28px;text-align:right;color:var(--muted);font-variant-numeric:tabular-nums}
+td.p,th.p{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;font-weight:600}
+td.d{width:40px;padding:4px}
+.x{width:36px;height:36px;border:none;background:none;color:var(--muted);font-size:20px;border-radius:8px;line-height:1}
+.x:active{background:var(--field);color:var(--danger)}
+tr.fresh td{animation:flash 1.2s ease-out}
+@keyframes flash{from{background:color-mix(in srgb,var(--accent) 18%,transparent)}to{background:transparent}}
+.empty{padding:22px 16px;color:var(--muted);text-align:center;font-size:15px}
+
+/* Итого и выгрузка — всегда под пальцем */
+.bar{
+  position:fixed;left:0;right:0;bottom:0;background:var(--paper);border-top:1px solid var(--line);
+  padding:10px 14px calc(10px + env(safe-area-inset-bottom,0px));
+}
+.bar .in{max-width:720px;margin:0 auto;display:flex;align-items:center;gap:12px}
+.total{flex:1;min-width:0}
+.total small{display:block;font-size:12px;color:var(--muted)}
+.total b{font-size:24px;font-variant-numeric:tabular-nums;white-space:nowrap}
+
+.snack{
+  position:fixed;left:14px;right:14px;bottom:calc(84px + env(safe-area-inset-bottom,0px));
+  max-width:560px;margin:0 auto;background:var(--ink);color:var(--paper);border-radius:10px;
+  padding:12px 14px;display:flex;justify-content:space-between;align-items:center;gap:12px;
+  transform:translateY(20px);opacity:0;pointer-events:none;transition:.2s;
+}
+.snack.on{transform:none;opacity:1;pointer-events:auto}
+.snack button{background:none;border:none;color:var(--paper);font-weight:700;text-decoration:underline;padding:4px}
+
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;padding:20px}
+.modal.on{display:flex}
+.modal .box{background:var(--paper);border-radius:14px;padding:20px;max-width:360px;width:100%}
+.modal p{margin:0 0 18px}
+.modal .row{display:flex;gap:10px;justify-content:flex-end}
+.modal .cancel{background:none;border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:11px 16px}
+.modal .danger{background:var(--danger);color:var(--paper);border:none;border-radius:10px;padding:11px 16px;font-weight:600}
+@media (prefers-reduced-motion: reduce){ *{animation:none!important;transition:none!important} }
+</style>
+</head>
+<body>
+<main>
+  <div class="period">
+    <select id="month" aria-label="Месяц"></select>
+    <select id="year" aria-label="Год"></select>
+    <div class="hint">Этот месяц станет заголовком акта</div>
+  </div>
+
+  <form class="form" id="form" autocomplete="off" novalidate>
+    <label class="wide">Изделие<input id="product" enterkeyhint="next"></label>
+    <label>Артикул<input id="sku" enterkeyhint="next"></label>
+    <label>Цена<input id="price" inputmode="decimal" enterkeyhint="done" placeholder="0"></label>
+    <label class="wide">Вид работ<input id="work" enterkeyhint="next"></label>
+    <p class="err" id="err" role="alert"></p>
+    <button class="primary" type="submit">Добавить запись</button>
+  </form>
+
+  <h2><span id="count">Записи</span><button class="ghost" id="clearAll" type="button" hidden>Очистить всё</button></h2>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th class="n">№</th><th>Изделие и работа</th><th class="p">Цена</th><th></th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <div class="empty" id="empty">Пока пусто. Добавьте первый заказ в форме выше.</div>
+  </div>
+</main>
+
+<div class="bar"><div class="in">
+  <div class="total"><small>Итого</small><b id="total">0,00</b></div>
+  <button class="primary" id="download" type="button">Скачать DOCX</button>
+</div></div>
+
+<div class="snack" id="snack"><span id="snackText"></span><button id="snackBtn" type="button" hidden>Вернуть</button></div>
+
+<div class="modal" id="modal" role="dialog" aria-modal="true">
+  <div class="box"><p>Удалить все записи? Это действие нельзя отменить.</p>
+    <div class="row"><button class="cancel" id="mCancel" type="button">Отмена</button><button class="danger" id="mOk" type="button">Удалить всё</button></div>
+  </div>
+</div>
+
+<script>
+/* ---------- Мини-генератор DOCX без библиотек (работает офлайн) ---------- */
+const DocxGen = (() => {
+  const CRC_TABLE = (() => {
+    const t = new Uint32Array(256);
+    for (let n = 0; n < 256; n++) {
+      let c = n;
+      for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+      t[n] = c >>> 0;
+    }
+    return t;
+  })();
+  function crc32(bytes) {
+    let c = 0xffffffff;
+    for (let i = 0; i < bytes.length; i++) c = CRC_TABLE[(c ^ bytes[i]) & 0xff] ^ (c >>> 8);
+    return (c ^ 0xffffffff) >>> 0;
+  }
+
+  // ZIP без сжатия (метод STORE) — Word и Google Docs открывают такие файлы без проблем
+  function zip(files) {
+    const enc = new TextEncoder();
+    const chunks = [];
+    const central = [];
+    let offset = 0;
+    for (const f of files) {
+      const name = enc.encode(f.name);
+      const data = typeof f.data === "string" ? enc.encode(f.data) : f.data;
+      const crc = crc32(data);
+      const lh = new DataView(new ArrayBuffer(30));
+      lh.setUint32(0, 0x04034b50, true);
+      lh.setUint16(4, 20, true);
+      lh.setUint16(6, 0x0800, true); // UTF-8 имена
+      lh.setUint16(8, 0, true);
+      lh.setUint16(10, 0, true);
+      lh.setUint16(12, 0x21, true);
+      lh.setUint32(14, crc, true);
+      lh.setUint32(18, data.length, true);
+      lh.setUint32(22, data.length, true);
+      lh.setUint16(26, name.length, true);
+      lh.setUint16(28, 0, true);
+      chunks.push(new Uint8Array(lh.buffer), name, data);
+
+      const ch = new DataView(new ArrayBuffer(46));
+      ch.setUint32(0, 0x02014b50, true);
+      ch.setUint16(4, 20, true);
+      ch.setUint16(6, 20, true);
+      ch.setUint16(8, 0x0800, true);
+      ch.setUint16(10, 0, true);
+      ch.setUint16(12, 0, true);
+      ch.setUint16(14, 0x21, true);
+      ch.setUint32(16, crc, true);
+      ch.setUint32(20, data.length, true);
+      ch.setUint32(24, data.length, true);
+      ch.setUint16(28, name.length, true);
+      ch.setUint32(42, offset, true);
+      central.push(new Uint8Array(ch.buffer), name);
+      offset += 30 + name.length + data.length;
+    }
+    const cdSize = central.reduce((s, c) => s + c.length, 0);
+    const end = new DataView(new ArrayBuffer(22));
+    end.setUint32(0, 0x06054b50, true);
+    end.setUint16(8, files.length, true);
+    end.setUint16(10, files.length, true);
+    end.setUint32(12, cdSize, true);
+    end.setUint32(16, offset, true);
+    const all = [...chunks, ...central, new Uint8Array(end.buffer)];
+    const out = new Uint8Array(all.reduce((s, c) => s + c.length, 0));
+    let p = 0;
+    for (const c of all) { out.set(c, p); p += c.length; }
+    return out;
+  }
+
+  const esc = (s) => String(s ?? "")
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;")
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "");
+
+  // Ширины колонок в twips (A4, поля 2 см → 9638)
+  const COLS = [620, 2700, 1700, 2918, 1700];
+
+  function run(text, { bold = false, size = 22 } = {}) {
+    return `<w:r><w:rPr>${bold ? "<w:b/>" : ""}<w:sz w:val="${size}"/><w:szCs w:val="${size}"/></w:rPr>` +
+      `<w:t xml:space="preserve">${esc(text)}</w:t></w:r>`;
+  }
+  function cell(text, width, { bold = false, align = "left", span = 1, shade = null } = {}) {
+    return `<w:tc><w:tcPr><w:tcW w:w="${width}" w:type="dxa"/>` +
+      (span > 1 ? `<w:gridSpan w:val="${span}"/>` : "") +
+      (shade ? `<w:shd w:val="clear" w:color="auto" w:fill="${shade}"/>` : "") +
+      `<w:vAlign w:val="center"/></w:tcPr>` +
+      `<w:p><w:pPr><w:spacing w:before="40" w:after="40"/><w:jc w:val="${align}"/></w:pPr>${run(text, { bold })}</w:p></w:tc>`;
+  }
+  const row = (cells, header = false) =>
+    `<w:tr>${header ? '<w:trPr><w:tblHeader/></w:trPr>' : ""}${cells.join("")}</w:tr>`;
+
+  function documentXml({ title, items, total, fmt }) {
+    const B = 'w:val="single" w:sz="6" w:space="0" w:color="000000"';
+    const head = row([
+      cell("№", COLS[0], { bold: true, align: "center", shade: "E7EAEE" }),
+      cell("Изделие", COLS[1], { bold: true, align: "center", shade: "E7EAEE" }),
+      cell("Артикул", COLS[2], { bold: true, align: "center", shade: "E7EAEE" }),
+      cell("Вид работ", COLS[3], { bold: true, align: "center", shade: "E7EAEE" }),
+      cell("Цена", COLS[4], { bold: true, align: "center", shade: "E7EAEE" }),
+    ], true);
+    const body = items.map((it, i) => row([
+      cell(String(i + 1), COLS[0], { align: "center" }),
+      cell(it.product, COLS[1]),
+      cell(it.sku, COLS[2]),
+      cell(it.work, COLS[3]),
+      cell(fmt(it.price), COLS[4], { align: "right" }),
+    ])).join("");
+    const totalRow = row([
+      cell("Итого", COLS[0] + COLS[1] + COLS[2] + COLS[3], { bold: true, align: "right", span: 4 }),
+      cell(fmt(total), COLS[4], { bold: true, align: "right" }),
+    ]);
+    return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>
+<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:after="240"/></w:pPr>${run(title, { bold: true, size: 32 })}</w:p>
+<w:tbl><w:tblPr><w:tblW w:w="${COLS.reduce((a, b) => a + b)}" w:type="dxa"/><w:tblLayout w:type="fixed"/>
+<w:tblBorders><w:top ${B}/><w:left ${B}/><w:bottom ${B}/><w:right ${B}/><w:insideH ${B}/><w:insideV ${B}/></w:tblBorders>
+<w:tblCellMar><w:left w:w="100" w:type="dxa"/><w:right w:w="100" w:type="dxa"/></w:tblCellMar></w:tblPr>
+<w:tblGrid>${COLS.map((w) => `<w:gridCol w:w="${w}"/>`).join("")}</w:tblGrid>
+${head}${body}${totalRow}</w:tbl>
+<w:p/>
+<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134" w:header="709" w:footer="709" w:gutter="0"/></w:sectPr>
+</w:body></w:document>`;
+  }
+
+  const STYLES = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+<w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:eastAsia="Arial" w:cs="Arial"/><w:sz w:val="22"/><w:szCs w:val="22"/><w:lang w:val="ru-RU"/></w:rPr></w:rPrDefault>
+<w:pPrDefault><w:pPr><w:spacing w:after="0" w:line="240" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults>
+<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/></w:style>
+</w:styles>`;
+
+  function build(data) {
+    return zip([
+      { name: "[Content_Types].xml", data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+<Default Extension="xml" ContentType="application/xml"/>
+<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+<Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
+</Types>` },
+      { name: "_rels/.rels", data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>` },
+      { name: "word/_rels/document.xml.rels", data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+</Relationships>` },
+      { name: "word/styles.xml", data: STYLES },
+      { name: "word/document.xml", data: documentXml(data) },
+    ]);
+  }
+
+  return { build };
+})();
+if (typeof module !== "undefined") module.exports = DocxGen;
+
+</script>
+<script>
+const MONTHS = ["Январь","Февраль","Март","Апрель","Май","Июнь","Июль","Август","Сентябрь","Октябрь","Ноябрь","Декабрь"];
+const $ = (id) => document.getElementById(id);
+const native = typeof window.Android !== "undefined";
+
+/* ---------- Хранилище: в приложении — память телефона, в браузере — localStorage ---------- */
+function loadState() {
+  try {
+    const raw = native ? Android.load() : localStorage.getItem("akt-data");
+    if (raw) { const s = JSON.parse(raw); if (Array.isArray(s.items)) return s; }
+  } catch (e) {}
+  const d = new Date();
+  return { items: [], month: d.getMonth(), year: d.getFullYear() };
+}
+function saveState() {
+  const raw = JSON.stringify(state);
+  try { native ? Android.save(raw) : localStorage.setItem("akt-data", raw); } catch (e) {}
+}
+let state = loadState();
+
+const fmt = (n) => Number(n).toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const sum = () => Math.round(state.items.reduce((s, it) => s + Number(it.price), 0) * 100) / 100;
+const title = () => `${MONTHS[state.month]} ${state.year}`;
+
+/* ---------- Месяц и год ---------- */
+MONTHS.forEach((m, i) => $("month").add(new Option(m, i)));
+const nowY = new Date().getFullYear();
+for (let y = nowY - 3; y <= nowY + 2; y++) $("year").add(new Option(y, y));
+if (![...$("year").options].some(o => +o.value === state.year)) $("year").add(new Option(state.year, state.year));
+$("month").value = state.month; $("year").value = state.year;
+$("month").onchange = () => { state.month = +$("month").value; saveState(); };
+$("year").onchange = () => { state.year = +$("year").value; saveState(); };
+
+/* ---------- Таблица ---------- */
+function render(freshIndex = -1) {
+  const tb = $("rows"); tb.innerHTML = "";
+  state.items.forEach((it, i) => {
+    const tr = document.createElement("tr");
+    if (i === freshIndex) tr.className = "fresh";
+    const td = (cls, text) => { const c = document.createElement("td"); if (cls) c.className = cls; c.textContent = text; tr.append(c); };
+    td("n", i + 1);
+    const main = document.createElement("td");
+    const line = (cls, text) => { const el = document.createElement("div"); el.className = cls; el.textContent = text; main.append(el); };
+    line("prod", it.product); line("work", it.work); if (it.sku) line("sku", "Арт. " + it.sku);
+    tr.append(main);
+    td("p", fmt(it.price));
+    const d = document.createElement("td"); d.className = "d";
+    const b = document.createElement("button"); b.className = "x"; b.type = "button"; b.textContent = "✕";
+    b.setAttribute("aria-label", `Удалить строку ${i + 1}`);
+    b.onclick = () => removeAt(i);
+    d.append(b); tr.append(d); tb.append(tr);
+  });
+  const n = state.items.length;
+  $("empty").hidden = n > 0;
+  $("clearAll").hidden = n === 0;
+  $("count").textContent = n ? `Записи: ${n}` : "Записи";
+  $("total").textContent = fmt(sum());
+}
+
+/* ---------- Добавление ---------- */
+const order = ["product", "sku", "price", "work"];
+order.forEach((id, k) => $(id).addEventListener("keydown", (e) => {
+  if (e.key === "Enter") { e.preventDefault(); k < order.length - 1 ? $(order[k + 1]).focus() : $("form").requestSubmit(); }
+}));
+$("form").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const product = $("product").value.trim(), sku = $("sku").value.trim(), work = $("work").value.trim();
+  const price = Number($("price").value.replace(/\s/g, "").replace(",", "."));
+  const bad = [];
+  if (!product) bad.push("product");
+  if (!work) bad.push("work");
+  if (!$("price").value.trim() || !isFinite(price) || price < 0) bad.push("price");
+  order.forEach(id => $(id).classList.toggle("bad", bad.includes(id)));
+  if (bad.length) {
+    $("err").textContent = "Заполните изделие, вид работ и цену числом — артикул можно оставить пустым.";
+    $(bad[0]).focus(); return;
+  }
+  $("err").textContent = "";
+  state.items.push({ product, sku, work, price: Math.round(price * 100) / 100 });
+  saveState(); render(state.items.length - 1);
+  order.forEach(id => $(id).value = "");
+  $("product").focus();
+});
+
+/* ---------- Удаление ---------- */
+let snackTimer, undo = null;
+function snack(text, undoFn = null) {
+  clearTimeout(snackTimer);
+  $("snackText").textContent = text; undo = undoFn; $("snackBtn").hidden = !undoFn;
+  $("snack").classList.add("on");
+  snackTimer = setTimeout(() => { $("snack").classList.remove("on"); undo = null; }, 4500);
+}
+$("snackBtn").onclick = () => { if (undo) undo(); $("snack").classList.remove("on"); undo = null; };
+function removeAt(i) {
+  const [it] = state.items.splice(i, 1); saveState(); render();
+  snack(`Строка ${i + 1} удалена`, () => { state.items.splice(i, 0, it); saveState(); render(i); });
+}
+$("clearAll").onclick = () => $("modal").classList.add("on");
+$("mCancel").onclick = () => $("modal").classList.remove("on");
+$("mOk").onclick = () => { state.items = []; saveState(); render(); $("modal").classList.remove("on"); snack("Все записи удалены"); };
+
+/* ---------- DOCX ---------- */
+function toBase64(bytes) {
+  let s = ""; for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  return btoa(s);
+}
+$("download").onclick = () => {
+  if (!state.items.length) { snack("Нет записей — сначала добавьте работы"); return; }
+  const bytes = DocxGen.build({ title: title(), items: state.items, total: sum(), fmt });
+  const name = `Акт_${MONTHS[state.month]}_${state.year}.docx`;
+  if (native) { Android.saveDocx(name, toBase64(bytes)); return; }
+  const url = URL.createObjectURL(new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" }));
+  const a = document.createElement("a"); a.href = url; a.download = name; document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+  snack(`Файл ${name} скачан`);
+};
+
+render();
+</script>
+</body>
+</html>
